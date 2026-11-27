@@ -81,7 +81,7 @@ async function before_card_move(move) {
 
 	// applyMoveMultiple calls this once per card with the same cardIds list.
 	const card_ids = move.cardIds && move.cardIds.length > 1 ? move.cardIds : [move.cardId];
-	const key = `${card_ids.join(",")}|${move.fromColumn}|${move.toColumn}`;
+	const key = `${page.current_board}|${card_ids.join(",")}|${move.fromColumn}|${move.toColumn}`;
 	for (const [saved_key, ts] of recent_validations) {
 		if (Date.now() - ts > 10000) recent_validations.delete(saved_key);
 	}
@@ -205,10 +205,9 @@ function install_settings() {
 	return true;
 }
 
-// desk.bundle.js normally loads before app bundles, but the on-demand Kanban
-// bundle is not involved here: only the settings registry is required.
-let attempts = 0;
-(function wait_for_settings() {
-	if (install_settings()) return;
-	if (attempts++ < 100) setTimeout(wait_for_settings, 100);
-})();
+// Only the registry is needed, not the on-demand Kanban bundle. Create it if a
+// Frappe version without Kanban v2 (v15) is loaded: the proxy is harmless there
+// and avoids polling for a registry that will never appear.
+frappe.provide("frappe.kanban_v2");
+frappe.provide("frappe.kanban_v2.settings");
+install_settings();

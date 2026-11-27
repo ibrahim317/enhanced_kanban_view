@@ -106,6 +106,31 @@ class IntegrationTestKanbanBoardRule(IntegrationTestCase):
 				}
 			).insert(ignore_permissions=True)
 
+	def test_rule_changes_are_visible_after_the_cache_is_warm(self):
+		# The first validation warms the cached rule map.
+		with self.assertRaises(ValidationError):
+			frappe.get_doc(
+				{
+					"doctype": "ToDo",
+					"description": "Enhanced Kanban test",
+					"status": "Open",
+					"priority": "",
+				}
+			).insert(ignore_permissions=True)
+
+		frappe.delete_doc(
+			"Kanban Board Rule", self.rule.name, force=True, ignore_permissions=True
+		)
+		todo = frappe.get_doc(
+			{
+				"doctype": "ToDo",
+				"description": "Enhanced Kanban test",
+				"status": "Open",
+				"priority": "",
+			}
+		).insert(ignore_permissions=True)
+		self.assertEqual(todo.status, "Open")
+
 	def test_server_side_validation_passes_when_field_is_filled(self):
 		todo = frappe.get_doc(
 			{

@@ -24,7 +24,10 @@ A powerful custom Frappe app that extends Kanban view functionality with advance
 - Boards must use **Kanban v2** (`use_kanban_v2 = 1`, the Frappe v16 default).
   The old classic-board monkey patches have been removed.
 - Required fields are also validated server-side on every save/move, not just
-  in the browser.
+  in the browser. Rule definitions are cached and refreshed when a board or rule
+  changes.
+- On Frappe v15 (no Kanban v2 registry) the client integration is inert; the
+  server-side validation still applies to boards configured for that site.
 
 ## 🚀 Installation
 

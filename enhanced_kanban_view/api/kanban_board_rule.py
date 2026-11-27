@@ -1,6 +1,10 @@
 import re
 
 import frappe
+from frappe import _
+
+
+MAX_RULE_FIELDS = 100
 
 
 def _resolve_legacy_field_name(field_name: str, reference_doctype: str) -> str:
@@ -39,7 +43,15 @@ def get_additional_fields(kanban_board_name, column_name):
 	"""
 	frappe.has_permission("Kanban Board", "read", doc=kanban_board_name, throw=True)
 
-	reference_doctype = frappe.db.get_value("Kanban Board", kanban_board_name, "reference_doctype")
+	board = frappe.db.get_value(
+		"Kanban Board", kanban_board_name, ["reference_doctype", "field_name"], as_dict=True
+	)
+	if not board or not board.reference_doctype:
+		frappe.throw(_("Kanban Board {0} does not exist").format(kanban_board_name))
+	frappe.has_permission(board.reference_doctype, "read", throw=True)
+
+	if not isinstance(column_name, str) or not column_name.strip():
+		return []
 
 	rows = frappe.db.sql(
 		"""
@@ -49,14 +61,22 @@ def get_additional_fields(kanban_board_name, column_name):
 		LEFT JOIN `tabKanban Board Column` AS col ON col.name = rule.kanban_board_column
 		WHERE rule.kanban_board = %(board)s
 			AND (col.column_name = %(column)s OR rule.kanban_board_column = %(column)s)
+		LIMIT %(limit)s
 		""",
-		values={"board": kanban_board_name, "column": column_name},
+		values={
+			"board": kanban_board_name,
+			"column": column_name,
+			"limit": MAX_RULE_FIELDS,
+		},
 		as_dict=True,
 	)
 
+	# Legacy rules can reference fields that no longer exist; sending those to
+	# quick entry would break the dialog.
+	meta = frappe.get_meta(board.reference_doctype)
 	fields = []
 	for row in rows:
-		field_name = _resolve_legacy_field_name(row.field_name, reference_doctype)
-		if field_name and field_name not in fields:
+		field_name = _resolve_legacy_field_name(row.field_name, board.reference_doctype)
+		if field_name and field_name not in fields and meta.has_field(field_name):
 			fields.append(field_name)
 	return fields

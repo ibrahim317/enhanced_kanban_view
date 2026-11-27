@@ -13,6 +13,10 @@ def quick_kanban_board(doctype, board_name, field_name, project=None):
 		frappe.throw(
 			_("Field {0} must be a Select or Link field on {1}").format(field_name, doctype)
 		)
+	if field.fieldtype == "Link":
+		# Columns are built from the linked DocType's names; do not leak them to
+		# a user who cannot read that DocType.
+		frappe.has_permission(field.options, "read", throw=True)
 
 	doc = frappe.new_doc("Kanban Board")
 	doc.kanban_board_name = board_name

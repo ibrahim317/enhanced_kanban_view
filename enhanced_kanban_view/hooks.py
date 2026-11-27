@@ -146,7 +146,15 @@ app_include_js = "enhanced_kanban_view.bundle.js"
 doc_events = {
 	"*": {
 		"validate": "enhanced_kanban_view.kanban_rules.validate_kanban_rules",
-	}
+	},
+	"Kanban Board": {
+		"on_update": "enhanced_kanban_view.kanban_rules.clear_rules_cache",
+		"on_trash": "enhanced_kanban_view.kanban_rules.clear_rules_cache",
+	},
+	"Kanban Board Rule": {
+		"on_update": "enhanced_kanban_view.kanban_rules.clear_rules_cache",
+		"on_trash": "enhanced_kanban_view.kanban_rules.clear_rules_cache",
+	},
 }
 
 # Scheduled Tasks
