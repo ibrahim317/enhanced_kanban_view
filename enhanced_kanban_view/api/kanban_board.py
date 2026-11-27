@@ -1,45 +1,42 @@
 import frappe
+from frappe import _
+
 
 @frappe.whitelist()
 def quick_kanban_board(doctype, board_name, field_name, project=None):
-	"""Create new KanbanBoard quickly with default options"""
+	"""Create a KanbanBoard with columns derived from a Select or Link field."""
+	frappe.has_permission(doctype, "read", throw=True)
+
+	meta = frappe.get_meta(doctype)
+	field = meta.get_field(field_name)
+	if not field or field.fieldtype not in ("Select", "Link"):
+		frappe.throw(
+			_("Field {0} must be a Select or Link field on {1}").format(field_name, doctype)
+		)
 
 	doc = frappe.new_doc("Kanban Board")
-	meta = frappe.get_meta(doctype)
-
 	doc.kanban_board_name = board_name
 	doc.reference_doctype = doctype
 	doc.field_name = field_name
 
 	if project:
-		doc.filters = f'[["Task","project","=","{project}"]]'
+		frappe.has_permission("Project", "read", doc=project, throw=True)
+		doc.filters = frappe.as_json([[doctype, "project", "=", project]])
 
-	options = ""
-	select_field = False
-	link_field = False
-	for field in meta.fields:
-		same_field = field.fieldname == field_name
-		select_field = field.fieldtype == "Select"
-		link_field = field.fieldtype == "Link"
-		if same_field and select_field:
-			options = field.options
-			break
-		elif same_field and link_field:
-			options = frappe.db.get_list(field.options, fields=["name"], limit_page_length=15)
-			break
+	if field.fieldtype == "Select":
+		options = (field.options or "").split("\n")
+	else:
+		options = frappe.get_all(
+			field.options,
+			filters={},
+			pluck="name",
+			limit_page_length=15,
+		)
 
-	columns = []
-	if options and select_field:
-		columns = options.split("\n")
-	elif options and link_field:
-		columns = [f"{item.name}" for item in options]
-
-	print("columns")
-	print(columns)
-	for column in columns:
-		if not column:
-			continue
-		doc.append("columns", dict(column_name=column))
+	for column in options:
+		column = (column or "").strip()
+		if column:
+			doc.append("columns", {"column_name": column})
 
 	if doctype in ["Note", "ToDo"]:
 		doc.private = 1

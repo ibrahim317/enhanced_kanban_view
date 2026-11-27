@@ -63,6 +63,9 @@ def update_kanban_columns_after_rename(self, old_name, new_name):
 			kb_doc.save(ignore_permissions=True)
 
 def update_kanban_columns_after_delete(target_doctype, items):
+	if isinstance(items, str):
+		items = frappe.parse_json(items) or []
+
 	kanban_boards = check_for_connected_kanban_boards(target_doctype)
 	for kanban_board in kanban_boards:
 		kb_doc = frappe.get_doc("Kanban Board", kanban_board.kanban_board_name)

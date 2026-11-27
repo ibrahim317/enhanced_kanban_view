@@ -4,7 +4,8 @@ frappe.provide("frappe.ui.form");
 frappe.enhanced_kanban_quick_edit = async function (doctype, name, additional_fields, after_insert, manual_setted_values) {
 	if (!name) name = doctype; // single
 	const doc = await frappe.db.get_doc(doctype, name);
-	await frappe.ui.form.make_enhanced_kanban_quick_entry(doctype, after_insert, null, doc, false, additional_fields, manual_setted_values);
+	const form = await frappe.ui.form.make_enhanced_kanban_quick_entry(doctype, after_insert, null, doc, true, additional_fields, manual_setted_values);
+	return form.wait_for_close();
 };
 
 frappe.ui.form.make_enhanced_kanban_quick_entry = async (doctype, after_insert, init_callback, doc, force, additional_fields, manual_setted_values) => {
@@ -38,6 +39,14 @@ frappe.ui.form.EnhancedKanbanQuickEntryForm = class EnhancedKanbanQuickEntryForm
 		this.additional_fields = additional_fields; // custom fields to include
 		this.manual_setted_values = manual_setted_values; // manual values to set
 		this.dialog = this; // for backward compatibility
+		this._saved = false;
+		this._close_promise = new Promise((resolve) => {
+			this._resolve_close = resolve;
+		});
+	}
+
+	wait_for_close() {
+		return this._close_promise;
 	}
 
 	setup() {
@@ -78,17 +87,26 @@ frappe.ui.form.EnhancedKanbanQuickEntryForm = class EnhancedKanbanQuickEntryForm
 			);
 		});
 
-		// Add custom fields if provided
+		// Add rule fields if provided. Clone the df: mutating frappe.get_meta()
+		// would make the field mandatory for every other form in the session.
 		if (custom_fields && Array.isArray(custom_fields)) {
 			custom_fields.forEach(field_name => {
 				const field = fields.find(df => df.fieldname === field_name);
-				field.reqd = 1;
-				if (field && 
-					!this.docfields.find(df => df.fieldname === field_name) && // not already added
-					!field.read_only &&
-					!field.is_virtual &&
-					field.fieldtype !== "Tab Break") {
-					this.docfields.push(field);
+				if (
+					!field ||
+					field.read_only ||
+					field.is_virtual ||
+					field.fieldtype === "Tab Break"
+				) {
+					return;
+				}
+
+				const required_df = Object.assign({}, field, { reqd: 1 });
+				const index = this.docfields.findIndex(df => df.fieldname === field_name);
+				if (index === -1) {
+					this.docfields.push(required_df);
+				} else {
+					this.docfields[index] = required_df;
 				}
 			});
 		}
@@ -177,7 +195,13 @@ frappe.ui.form.EnhancedKanbanQuickEntryForm = class EnhancedKanbanQuickEntryForm
 		this.render_edit_in_full_page_link();
 		this.setup_cmd_enter_for_save();
 
-		this.onhide = () => (frappe.enhanced_kanban_quick_entry = null);
+		this.onhide = () => {
+			frappe.enhanced_kanban_quick_entry = null;
+			if (this._resolve_close) {
+				this._resolve_close({ saved: this._saved });
+				this._resolve_close = null;
+			}
+		};
 		this.show();
 
 		this.refresh_dependency();
@@ -213,7 +237,7 @@ frappe.ui.form.EnhancedKanbanQuickEntryForm = class EnhancedKanbanQuickEntryForm
 				me.dialog.working = true;
 				me.script_manager.trigger("validate").then(() => {
 					me.insert().then(() => {
-						let messagetxt = __("{1} saved", [__(me.doctype), this.doc.name.bold()]);
+						let messagetxt = __("{1} saved", [__(me.doctype), me.doc.name.bold()]);
 						me.dialog.animation_speed = "slow";
 						me.dialog.hide();
 						setTimeout(function () {
@@ -280,6 +304,7 @@ frappe.ui.form.EnhancedKanbanQuickEntryForm = class EnhancedKanbanQuickEntryForm
 	}
 
 	process_after_insert(r) {
+		this._saved = true;
 		// delete the old doc
 		frappe.model.clear_doc(this.doc.doctype, this.doc.name);
 		this.doc = r.message;

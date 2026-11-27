@@ -141,6 +141,14 @@ app_include_js = "enhanced_kanban_view.bundle.js"
 # 	}
 # }
 
+# Kanban column rules must also be enforced server-side: the v2 engine saves
+# cards through frappe.client.set_value / bulk_update, bypassing board methods.
+doc_events = {
+	"*": {
+		"validate": "enhanced_kanban_view.kanban_rules.validate_kanban_rules",
+	}
+}
+
 # Scheduled Tasks
 # ---------------
 

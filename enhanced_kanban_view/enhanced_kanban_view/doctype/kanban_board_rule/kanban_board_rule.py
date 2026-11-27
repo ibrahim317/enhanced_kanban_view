@@ -30,6 +30,8 @@ class KanbanBoardRule(Document):
         if not board_name:
             return KanbanBoardData(columns=[], fields=[])
 
+        frappe.has_permission("Kanban Board", "read", doc=board_name, throw=True)
+
         try:
             kanban_board_doc = typing.cast(KanbanBoard, frappe.get_doc("Kanban Board", board_name))
             reference_doctype = kanban_board_doc.reference_doctype
@@ -54,12 +56,11 @@ class KanbanBoardRule(Document):
             fields=["fieldname", "label"]
         )
         custom_fields = [
-            {"value": f.fieldname, "label": f"{f.label or f.fieldname} (Custom)"}
+            {"value": f.fieldname, "label": f"{f.label or f.fieldname} ({f.fieldname})"}
             for f in custom_fields_docs
         ]
 
         all_fields = sorted(standard_fields + custom_fields, key=lambda x: x["label"])
-        print(all_fields)
 
         return {
             "columns": columns,

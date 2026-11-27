@@ -18,6 +18,14 @@ A powerful custom Frappe app that extends Kanban view functionality with advance
 - Smart field detection for rules
 - Seamless Frappe integration
 
+### 🧩 Kanban v2
+- Rules are injected through `frappe.kanban_v2.settings`, so the core v2 engine
+  keeps its realtime updates, virtualisation and multi-card drag & drop.
+- Boards must use **Kanban v2** (`use_kanban_v2 = 1`, the Frappe v16 default).
+  The old classic-board monkey patches have been removed.
+- Required fields are also validated server-side on every save/move, not just
+  in the browser.
+
 ## 🚀 Installation
 
 ```bash
