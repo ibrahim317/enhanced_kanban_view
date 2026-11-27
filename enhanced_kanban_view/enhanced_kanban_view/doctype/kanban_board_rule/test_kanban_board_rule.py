@@ -16,10 +16,30 @@ class IntegrationTestKanbanBoardRule(IntegrationTestCase):
 	doctype = "Kanban Board Rule"
 
 	def setUp(self):
+		# IntegrationTestCase rolls back successful tests, but failed runs can
+		# leave boards behind. Start from a clean slate.
+		for name in frappe.get_all(
+			"Kanban Board Rule",
+			filters={"kanban_board": ["like", "Test Enhanced Kanban Board %"]},
+			pluck="name",
+		):
+			frappe.delete_doc("Kanban Board Rule", name, force=True, ignore_permissions=True)
+		for name in frappe.get_all(
+			"Kanban Board", filters={"name": ["like", "Test Enhanced Kanban Board %"]}, pluck="name"
+		):
+			frappe.delete_doc("Kanban Board", name, force=True, ignore_permissions=True)
+		for name in frappe.get_all(
+			"Custom Field",
+			filters={"fieldname": ["like", "test_enhanced_kanban_%"]},
+			pluck="name",
+		):
+			frappe.delete_doc("Custom Field", name, force=True, ignore_permissions=True)
+
+		self.board_name = f"Test Enhanced Kanban Board {frappe.generate_hash(length=6)}"
 		self.board = frappe.get_doc(
 			{
 				"doctype": "Kanban Board",
-				"kanban_board_name": "Test Enhanced Kanban Board",
+				"kanban_board_name": self.board_name,
 				"reference_doctype": "ToDo",
 				"field_name": "status",
 				"columns": [
@@ -58,21 +78,21 @@ class IntegrationTestKanbanBoardRule(IntegrationTestCase):
 		self.assertEqual(get_additional_fields(self.board.name, "Closed"), [])
 
 	def test_legacy_custom_label_is_resolved(self):
+		fieldname = f"test_enhanced_kanban_{frappe.generate_hash(length=5)}"
+		label = f"Enhanced Kanban Test Field {fieldname}"
 		custom = frappe.get_doc(
 			{
 				"doctype": "Custom Field",
 				"dt": "ToDo",
-				"fieldname": "test_enhanced_kanban_field",
-				"label": "Enhanced Kanban Test Field",
+				"fieldname": fieldname,
+				"label": label,
 				"fieldtype": "Data",
 			}
 		).insert(ignore_permissions=True)
-		self.rule.required_fields[0].field_name = "Enhanced Kanban Test Field (Custom)"
+		self.rule.required_fields[0].field_name = f"{label} (Custom)"
 		self.rule.save(ignore_permissions=True)
 
-		self.assertEqual(
-			get_additional_fields(self.board.name, "Open"), ["test_enhanced_kanban_field"]
-		)
+		self.assertEqual(get_additional_fields(self.board.name, "Open"), [fieldname])
 		frappe.delete_doc("Custom Field", custom.name, force=True, ignore_permissions=True)
 
 	def test_server_side_validation_blocks_missing_required_field(self):
