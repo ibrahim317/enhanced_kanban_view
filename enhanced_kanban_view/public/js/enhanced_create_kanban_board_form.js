@@ -31,6 +31,10 @@ frappe.ui.form.on("Kanban Board", {
 			function (frm) {
 				var field = frappe.meta.get_field(frm.doc.reference_doctype, frm.doc.field_name);
 				frm.doc.columns = [];
+				if (!field) {
+					frm.refresh_field("columns");
+					return;
+				}
 				if (field.fieldtype === "Link") {
 					frappe.db
 						.get_list(field.options, {

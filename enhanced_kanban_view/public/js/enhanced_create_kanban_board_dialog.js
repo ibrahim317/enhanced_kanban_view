@@ -87,7 +87,7 @@ frappe.views.KanbanView.show_kanban_dialog = function (doctype) {
 				fieldname: "field_name",
 				label: __("Columns based on"),
 				options: fields.map((df) => ({ label: df.label, value: df.fieldname })),
-				default: fields[0],
+				default: fields[0].fieldname,
 				reqd: 1,
 			},
 		];
